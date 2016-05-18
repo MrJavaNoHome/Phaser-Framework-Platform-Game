@@ -1,0 +1,195 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+	<meta charset="UTF-8" />
+	<title>Platformowka</title>
+    <script src="https://proj1js-honzik.c9users.io/build/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+    <script type="text/javascript">
+// https://dl.dropboxusercontent.com/s/nprvawkml8mav45/phaser.min.js
+// http://phaser.io/examples/v2/games/starstruck
+// http://proj1js-honzik.c9users.io/Proj1/part2.html
+// http://gamefroot.com/wp-content/files/2013/12/desert.png
+Enemy = function () {
+    this.enemies.enableBody = true;
+    this.enemy.body.collideWorldBounds = true;
+    
+    
+    this.enemy.body.gravity.y = 500; //Grawitacja wrogow
+    this.enemy.body.velocity.x = -500;
+    this.tank.body.immovable = false;
+    this.tank.body.bounce.setTo(1, 1);
+};
+
+
+var game = new Phaser.Game(500, 340, Phaser.AUTO, 'gameDiv');
+
+var mainState = {
+
+
+preload: function() {
+    //game.load.image('player', 'assets2/player.png');
+    game.load.spritesheet('player', 'assets2/player2.png',20,20);
+    
+    game.load.image('wallV', 'assets2/wallVertical.png');
+    game.load.image('wallH', 'assets2/wallHorizontal.png');
+    game.load.image('kolizyjnyImg', 'assets2/coin.png');
+    game.load.spritesheet('coin', 'assets/sprites/coin.png', 32, 32);
+    game.load.image('enemy', 'assets2/enemy.png');
+},
+
+create: function() { 
+    //Game
+    game.stage.backgroundColor = '#3498db';
+    game.physics.startSystem(Phaser.Physics.ARCADE);
+    
+    //Swiat
+    this.createWorld();
+    
+    //Gracz
+    this.player = game.add.sprite(250, 170, 'player');
+    game.physics.arcade.enable(this.player); //Fizyka
+    this.player.body.gravity.y = 500; //Grawitacja
+    this.cursor = game.input.keyboard.createCursorKeys(); //Sterowanie strzalkami(kursorami)
+    //-Animacja gracza
+    this.player.animations.add('leftAnim', [3, 4], 6, true);
+    this.player.animations.add('rightAnim', [1, 2], 6, true);
+    this.player.animations.add('stopAnim', [0], 6, true);
+
+},
+
+update: function() {
+    game.physics.arcade.collide(this.player, this.walls);
+    game.physics.arcade.collide(this.enemies, this.walls);
+    game.physics.arcade.collide(this.enemies, this.player);
+    game.physics.arcade.collide(this.enemies, this.collisionTiles, function(){console.log("lel");});
+    this.movePlayer(); //Funkcja od sterowania gracza
+    
+},
+
+
+
+
+strzal: function()
+{
+    //game.add.sprite(game.world.randomX, game.world.randomY, 'bullet');
+},
+
+movePlayer: function()
+{
+    // If the left arrow key is pressed
+    if (this.cursor.left.isDown) {
+        // Move the player to the left
+        this.player.body.velocity.x = -200;
+        this.player.animations.play('leftAnim');
+   }
+ 
+   // If the right arrow key is pressed
+   else if (this.cursor.right.isDown) {
+       // Move the player to the right
+       this.player.body.velocity.x = 200;
+       this.player.animations.play('rightAnim');
+   }
+ 
+   // If neither the right or left arrow key is pressed
+   else {
+       // Stop the player
+       this.player.body.velocity.x = 0;
+       //this.player.animations.stop();
+       this.player.animations.play('stopAnim');
+   }
+ 
+   // If the up arrow key is pressed and the player is touching the ground
+   if (this.cursor.up.isDown && this.player.body.touching.down) {
+       // Move the player upward (jump)
+       this.player.body.velocity.y = -320;
+   }      
+},
+
+createWorld: function() {
+    // Grupa ścian 
+    this.walls = game.add.group();
+    this.walls.enableBody = true;
+ 
+    game.add.sprite(0, 0, 'wallV', 0, this.walls); // Left
+    game.add.sprite(480, 0, 'wallV', 0, this.walls); // Right
+ 
+    game.add.sprite(0, 0, 'wallH', 0, this.walls); // Top left
+    game.add.sprite(300, 0, 'wallH', 0, this.walls); // Top right
+    game.add.sprite(0, 320, 'wallH', 0, this.walls); // Bottom left
+    game.add.sprite(300, 320, 'wallH', 0, this.walls); // Bottom right
+ 
+    game.add.sprite(-100, 160, 'wallH', 0, this.walls); // Middle left
+    game.add.sprite(400, 160, 'wallH', 0, this.walls); // Middle right
+ 
+    var middleTop = game.add.sprite(100, 80, 'wallH', 0, this.walls);
+    middleTop.scale.setTo(1.5, 1);
+    var middleBottom = game.add.sprite(100, 240, 'wallH', 0, this.walls);
+    middleBottom.scale.setTo(1.5, 1); // skala x = 1.5 = 150%, y = 1 = 100%
+ 
+    // Nieprzesuwalne sciany
+    this.walls.setAll('body.immovable', true);
+    
+    //Kratki kolizyjne
+    this.collisionTiles = game.add.group();
+    this.collisionTiles.enableBody = true;
+    game.add.sprite(385, 135, 'kolizyjnyImg', 0, this.collisionTiles);
+    game.add.sprite(100, 135, 'kolizyjnyImg', 0, this.collisionTiles); 
+    game.add.sprite(85, 55, 'kolizyjnyImg', 0, this.collisionTiles); 
+    game.add.sprite(400, 55, 'kolizyjnyImg', 0, this.collisionTiles); 
+    game.add.sprite(85, 215, 'kolizyjnyImg', 0, this.collisionTiles); 
+    game.add.sprite(400, 215, 'kolizyjnyImg', 0, this.collisionTiles);
+    game.add.sprite(285, 295, 'kolizyjnyImg', 0, this.collisionTiles);
+    game.add.sprite(200, 295, 'kolizyjnyImg', 0, this.collisionTiles);
+    this.collisionTiles.setAll('body.immovable', true);
+    
+    
+    // Wrogowie
+    /*
+    this.enemies = game.add.group();
+    this.enemies.enableBody = true;
+    game.add.sprite(250, 170, 'enemy',0, this.enemies);
+    this.enemies.setAll('body.gravity.y', 500); //Grawitacja wrogow
+    this.enemies.setAll('body.velocity.x', -150);
+    this.enemies.setAll('body.collideWorldBounds', true);
+    //this.enemies.setAll('body.bounce',1,1);
+    //EnemyTank = function (index, game, player, bullets) {
+    */
+    this.enemies = [];
+
+    for (var i = 0; i < 1; i++)
+    {
+        this.enemies.push(new Enemy());
+    }
+    
+    
+    //Monety
+    this.coins = game.add.group();
+    this.coins.enableBody = true;
+    game.add.sprite(280, 170, 'coin',0, this.coins);
+    this.coins.callAll('animations.add', 'animations', 'spin', [0, 1, 2, 3, 4, 5], 10, true);
+    this.coins.callAll('animations.play', 'animations', 'spin');
+    
+},
+
+
+render: function() {
+    game.debug.bodyInfo(this.player, 10, 10); //Wyswietla info o graczu, pozycja itp
+    game.debug.body(this.player); //Zaznacza obiekt debugowany na zielony
+}
+
+};
+
+game.state.add('main', mainState);
+game.state.start('main');
+
+</script>
+</head>
+<body>
+    <div id="gameDiv"></div>
+</body>
+</html>

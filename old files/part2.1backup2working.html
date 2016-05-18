@@ -1,0 +1,358 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+	<meta charset="UTF-8" />
+	<title>Platformowka</title>
+    <script src="https://proj1js-honzik.c9users.io/build/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+    <script type="text/javascript">
+// https://dl.dropboxusercontent.com/s/nprvawkml8mav45/phaser.min.js
+// http://phaser.io/examples/v2/games/starstruck
+// http://proj1js-honzik.c9users.io/Proj1/part2.html
+// http://gamefroot.com/wp-content/files/2013/12/desert.png
+
+var game = new Phaser.Game(1000, 340, Phaser.AUTO, 'gameDiv',{ preload: preload, create: create, update: update, render: render });
+var enemies;
+var walls;
+var player;
+var cursor;
+var collisionTiles;
+var coins;
+var wallCollisionGroup;
+var points = 0;
+var fireButton;
+var playerDirection = 0; // potrzebne przy kierunku przycisku
+var nextFireTime;
+var bullet = null;
+var koniecGryString = "";
+
+Enemy = function (x,y) {
+    this.enemy = game.add.sprite(250,170, 'enemy',0);
+    if(this.enemy == null)
+        console.log("null");
+    game.physics.enable(this.enemy, Phaser.Physics.ARCADE);
+    this.enemy.body.collideWorldBounds = true;
+    
+    
+    this.enemy.body.gravity.y = 500; //Grawitacja wrogow
+    this.enemy.body.velocity.x = 50;
+    this.enemy.body.velocity.y = 0;
+    this.enemy.body.immovable = false;
+    this.enemy.body.bounce.set(1);
+};
+
+function preload() {
+    //game.load.image('player', 'assets2/player.png');
+    game.load.spritesheet('player', 'assets2/player2.png',20,20);
+    game.load.image('bullet', 'assets/games/tanks/bullet.png');
+    
+    game.load.image('wallV', 'assets2/wallVertical.png');
+    game.load.image('wallH', 'assets2/wallHorizontal.png');
+    
+    //game.load.image('kolizyjnyImg', 'assets2/enemyBlockTile.png');
+    game.load.image('kolizyjnyImg', 'assets2/coin.png');
+    
+    game.load.spritesheet('coin', 'assets/sprites/coin.png', 32, 32);
+    game.load.image('enemy', 'assets2/enemy.png');
+}
+
+function create() { 
+    //Game
+    game.stage.backgroundColor = '#3498db';
+    game.physics.startSystem(Phaser.Physics.ARCADE);
+    game.physics.setBoundsToWorld();
+    
+    //Collision groups
+
+    
+    //Swiat
+    createWorld();
+    
+    //Gracz
+    player = game.add.sprite(250, 170, 'player');
+    game.physics.arcade.enable(player); //Fizyka
+    player.body.gravity.y = 500; //Grawitacja
+    player.checkWorldBounds = true;
+    player.outOfBoundsKill = true;
+    cursor = game.input.keyboard.createCursorKeys(); //Sterowanie strzalkami(kursorami)
+    //-Animacja gracza
+    player.animations.add('leftAnim', [3, 4], 6, true);
+    player.animations.add('rightAnim', [1, 2], 6, true);
+    player.animations.add('stopAnim', [0], 6, true);
+    
+    //Strzal
+    fireButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+    nextFireTime = game.time.now;
+}
+
+function update() {
+    
+    if(player.alive)
+    {
+    game.physics.arcade.collide(player, walls);
+    game.physics.arcade.collide(player,coins,dodajPunkt);
+    
+    for (var i = 0; i < enemies.length; i++)
+    {
+        game.physics.arcade.collide(walls, enemies[i].enemy);
+        game.physics.arcade.collide(enemies[i].enemy, player, zabijGracza); 
+        game.physics.arcade.collide(enemies[i].enemy, collisionTiles);
+        game.physics.arcade.collide(enemies[i].enemy, bullet,zabijWroga);
+    }
+    
+    movePlayer(); //Funkcja od sterowania gracza
+    
+    if(fireButton.isDown)
+    {
+        strzal();
+    }
+    }
+    else
+    {
+        koniecGry();
+    }
+}
+
+function koniecGry(stringX)
+{
+    koniecGryString = stringX;
+    
+    //game.physics.arcade.isPaused = true;
+    console.log('koniec');
+}
+
+function zabijGracza(enemy,player)
+{
+    if(player != null && player.alive)
+    {
+        player.kill();
+    }
+    else
+    {
+        console.log("gracz juz nei zyje");
+    }
+    
+    koniecGry('Przegrales');
+}
+
+function zabijWroga(enemy,bullet)
+{
+    points++;
+    enemy.kill(); //Kill nie usuwa z pamieci
+    bullet.kill();
+    
+    var allDead = true;
+    
+    for(i=0;i<enemies.length;i++)
+    {
+        if(enemies[i].enemy.alive)
+        {
+            allDead = false;
+        }
+    }
+    
+    if(allDead == true)
+    {
+        koniecGry('Wygrales! Twoj wynik to ' + points + ' punktów');
+    }
+}
+
+//Dodaje pkt oraz usuwa monete
+function dodajPunkt(player,coins)
+{
+    points++;
+    coins.kill();
+}
+
+
+//Obecnie mozliwosc wystrzalu jednego pocisku, opoznienie odopwiednie tak aby wystrzelony wczesniej przycisk wylecial 
+//albo poza krawedzie i zostal automatycznie zniszczony albo zniszoczny przy uderzeniu w przeciwnika
+function strzal()
+{
+    if(nextFireTime < game.time.now)
+    {
+        bullet = game.add.sprite(player.x, player.y, 'bullet');
+        game.physics.arcade.enable(bullet); //Fizyka
+        bullet.checkWorldBounds = true;
+        bullet.outOfBoundsKill = true;
+        if(playerDirection == 0)
+        {
+            bullet.scale.x = -1;
+            bullet.body.velocity.x = -300;
+        }
+        else if(playerDirection == 1)
+        {
+             bullet.scale.x = 1;
+             bullet.body.velocity.x = 300;
+        }
+        
+        nextFireTime = game.time.now + 1000;
+    }
+}
+
+function movePlayer()
+{
+    // If the left arrow key is pressed
+    if (cursor.left.isDown) {
+        // Move the player to the left
+        player.body.velocity.x = -200;
+        player.animations.play('leftAnim');
+        playerDirection = 0;
+   }
+ 
+   // If the right arrow key is pressed
+   else if (cursor.right.isDown) {
+       // Move the player to the right
+       player.body.velocity.x = 200;
+       player.animations.play('rightAnim');
+       playerDirection = 1;
+   }
+ 
+   // If neither the right or left arrow key is pressed
+   else {
+       // Zatrzymanie gracza albo poprzez animacje pojedynczego obrazka albo
+       //
+       //player.animations.play('stopAnim');
+       //...albo - lepsza praktyka
+       player.animations.stop();
+       player.body.velocity.x = 0;
+   }
+ 
+   // If the up arrow key is pressed and the player is touching the ground
+   if (cursor.up.isDown && player.body.touching.down) {
+       // Move the player upward (jump)
+       player.body.velocity.y = -320;
+   }   
+   
+
+}
+
+function createWorld() {
+    // Grupa ścian 
+    walls = game.add.group(); //Obie wersje tworzenia grup działaja
+    //walls = game.add.physicsGroup();
+    walls.enableBody = true;
+ 
+    game.add.sprite(0, 0, 'wallV', 0, walls); // Left
+    game.add.sprite(980, 0, 'wallV', 0, walls); // Right
+ 
+    game.add.sprite(0, 0, 'wallH', 0, walls); // Top left
+    game.add.sprite(300, 0, 'wallH', 0, walls); // Top right
+    game.add.sprite(500, 0, 'wallH', 0, walls);
+    game.add.sprite(700, 0, 'wallH', 0, walls);
+    game.add.sprite(800, 0, 'wallH', 0, walls);
+    var temp = game.add.sprite(900, 320, 'wallH', 0, walls);
+    temp.scale.setTo(0.5, 1);
+    game.add.sprite(650, 320, 'wallH', 0, walls);
+    temp = game.add.sprite(850, 320, 'wallH', 0, walls);
+    temp.scale.setTo(0.25, 1);
+    temp = game.add.sprite(700, 80, 'wallH', 0, walls);
+    temp = game.add.sprite(880, 80, 'wallV', 0, walls);
+    
+    
+    game.add.sprite(0, 320, 'wallH', 0, walls); // Bottom left
+    game.add.sprite(300, 320, 'wallH', 0, walls); // Bottom right
+ 
+    game.add.sprite(-100, 160, 'wallH', 0, walls); // Middle left
+    game.add.sprite(400, 160, 'wallH', 0, walls); // Middle right
+ 
+    var middleTop = game.add.sprite(100, 80, 'wallH', 0, walls);
+    middleTop.scale.setTo(1.5, 1);
+    var middleBottom = game.add.sprite(100, 240, 'wallH', 0, walls);
+    middleBottom.scale.setTo(1.5, 1); // skala x = 1.5 = 150%, y = 1 = 100%
+ 
+    // Nieprzesuwalne sciany
+    walls.setAll('body.immovable', true);
+    
+    //Kratki kolizyjne dla wrogow aby poruszali sie tylko po platformach
+    collisionTiles = game.add.group();
+    collisionTiles.enableBody = true;
+    game.add.sprite(285, 135, 'kolizyjnyImg', 0, collisionTiles);
+    game.add.sprite(200, 135, 'kolizyjnyImg', 0, collisionTiles); 
+    game.add.sprite(85, 55, 'kolizyjnyImg', 0, collisionTiles); 
+    game.add.sprite(400, 55, 'kolizyjnyImg', 0, collisionTiles); 
+    game.add.sprite(85, 215, 'kolizyjnyImg', 0, collisionTiles); 
+    game.add.sprite(400, 215, 'kolizyjnyImg', 0, collisionTiles);
+    game.add.sprite(400, 220, 'kolizyjnyImg', 0, collisionTiles);
+    
+    game.add.sprite(285, 295, 'kolizyjnyImg', 0, collisionTiles);
+    game.add.sprite(200, 295, 'kolizyjnyImg', 0, collisionTiles);
+    game.add.sprite(650, 80, 'kolizyjnyImg', 0, collisionTiles);
+    game.add.sprite(395, 175, 'kolizyjnyImg', 0, collisionTiles);
+    collisionTiles.setAll('body.immovable', true);
+    collisionTiles.setAll('visible', false)
+    collisionTiles.scale.set(1,2);
+    
+    
+    // Wrogowie
+    /*
+    this.enemies = game.add.group();
+    this.enemies.enableBody = true;
+    game.add.sprite(250, 170, 'enemy',0, this.enemies);
+    this.enemies.setAll('body.gravity.y', 500); //Grawitacja wrogow
+    this.enemies.setAll('body.velocity.x', -150);
+    this.enemies.setAll('body.collideWorldBounds', true);
+    //this.enemies.setAll('body.bounce',1,1);
+    //EnemyTank = function (index, game, player, bullets) {
+    */
+    enemies = [];
+    /*
+    for (var i = 0; i < 1; i++)
+    {
+        enemies.push(new Enemy(250,170));
+    }
+    */
+    enemies.push(new Enemy(250,170));
+    enemies.push(new Enemy(36,140));
+    enemies.push(new Enemy(250,170));
+    enemies.push(new Enemy(250,170));
+    enemies.push(new Enemy(250,170));
+    
+    //Monety
+    coins = game.add.group();
+    coins.enableBody = true;
+    game.add.sprite(280, 170, 'coin',0, coins);
+    game.add.sprite(181, 170, 'coin',0, coins);
+    
+    game.add.sprite(145, 20, 'coin',0, coins);
+    game.add.sprite(245, 0, 'coin',0, coins);
+    game.add.sprite(372, 20, 'coin',0, coins);
+    
+    game.add.sprite(60, 200, 'coin',0, coins);
+    game.add.sprite(135, 260, 'coin',0, coins);
+    game.add.sprite(343, 260, 'coin',0, coins);
+    game.add.sprite(433, 200, 'coin',0, coins);
+    //coins.setAll('body.immovable', true);
+    coins.callAll('animations.add', 'animations', 'spin', [0, 1, 2, 3, 4, 5], 10, true);
+    coins.callAll('animations.play', 'animations', 'spin');
+    
+    
+}
+
+function render() {
+    game.debug.bodyInfo(player, 10, 10); //Wyswietla info o graczu, pozycja itp
+    //game.debug.body(player); //Zaznacza obiekt debugowany na zielony
+    //Wyswietlanie liczby pktow
+    game.debug.text('Punkty: ' + points, 0, 330);
+    game.debug.text('Kierunek: ' + playerDirection, 0, 300);
+    
+    if(koniecGryString.length>0)
+        game.debug.text(koniecGryString, game.world.centerX-100, game.world.centerY);
+    if(enemies[0].enemy !== null)
+        game.debug.text('Bullet alive: ' + 'true', 0, 270);
+    else
+        game.debug.text('Bullet alive: ' + 'false', 0, 270);
+
+}
+
+
+</script>
+</head>
+<body>
+    <div id="gameDiv"></div>
+</body>
+</html>
